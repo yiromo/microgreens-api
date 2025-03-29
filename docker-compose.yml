@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  # zookeeper:
+  #   image: confluentinc/cp-zookeeper:7.5.0
+  #   container_name: zookeeper
+  #   restart: always
+  #   environment:
+  #     ZOOKEEPER_CLIENT_PORT: 2181
+  #     ZOOKEEPER_TICK_TIME: 2000
+  #   ports:
+  #     - "2181:2181"
+  #   networks:
+  #     mgreen-net:
+  #       ipv4_address: 192.168.11.4
+
+  # kafka:
+  #   image: confluentinc/cp-kafka:7.5.0
+  #   container_name: kafka
+  #   restart: always
+  #   depends_on:
+  #     - zookeeper
+  #   env_file:
+  #     - ./envs/containers.env
+  #   ports:
+  #     - "9092:9092"
+  #   networks:
+  #     mgreen-net:
+  #       ipv4_address: 192.168.11.5
+
+  # mail:
+  #   build:
+  #     context: .
+  #     dockerfile: ./dockerfiles/mail.dockerfile  
+  #   container_name: mail-service
+  #   restart: always
+  #   volumes:
+  #     - ./mail:/app/mail
+  #   ports:
+  #     - 8882:8030
+  #   depends_on:
+  #     - kafka
+  #   networks:
+  #     mgreen-net:
+  #       ipv4_address: 192.168.11.6
+
+  mgreen-api:
+    build:
+      context: .
+      dockerfile: ./dockerfiles/mgreen.dockerfile
+    container_name: mgreen-api
+    restart: always
+    volumes:
+      - ./mgreen-backend:/app/mgreen-backend
+      - ./requirements.txt:/app/mgreen-backend/requirements.txt
+    ports:
+      - 8010:8000
+    networks:
+      mgreen-net:
+        ipv4_address: 192.168.11.3
+
+networks:
+  mgreen-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.11.0/24

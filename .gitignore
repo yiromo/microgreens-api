@@ -1,0 +1,10 @@
+.venv/
+.venv
+.venv/*
+envs/containers.env
+*.env
+.env
+alembic.ini
+__pycache__
+__pycache__/
+__pycache__/*

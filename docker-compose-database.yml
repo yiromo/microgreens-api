@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  database:
+    image: postgres:latest
+    container_name: mgreen-database
+    ports:
+      - "5445:5432"
+    env_file:
+      - ./envs/containers.env
+    networks:
+      mgreen-net:
+        ipv4_address: 192.168.11.5
+    volumes:
+      - /mgreen/postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+networks:
+  mgreen-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.11.0/24

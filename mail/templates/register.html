@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YI SSO Account Activation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .content {
+            background-color: #f9f9f9;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .button-container {
+            text-align: center;
+            margin: 30px 0;
+        }
+        .button {
+            display: inline-block;
+            padding: 12px 25px;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: bold;
+            margin: 0 10px;
+            text-align: center;
+        }
+        .activate {
+            background-color: #2ecc71;
+            color: white;
+        }
+        .cancel {
+            background-color: #e74c3c;
+            color: white;
+        }
+        .footer {
+            font-size: 12px;
+            text-align: center;
+            color: #7f8c8d;
+            margin-top: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">YI SSO</div>
+    </div>
+    
+    <div class="content">
+        <h2>Hello {{username}},</h2>
+        
+        <p>Thank you for registering with YI SSO. We've received a request to create an account using this email address.</p>
+        
+        <p>If you initiated this request, please click the green button below to activate your account. If you did not make this request, please click the red button to cancel the registration process.</p>
+        
+        <div class="button-container">
+            <a href="{{activation_link}}" class="button activate">Activate Account</a>
+            <a href="{{cancellation_link}}" class="button cancel">Cancel Request</a>
+        </div>
+        
+        <p>If you're having trouble with the buttons above, you can also use these links:</p>
+        <p>To activate: <a href="{{activation_link}}">{{activation_link}}</a></p>
+        <p>To cancel: <a href="{{cancellation_link}}">{{cancellation_link}}</a></p>
+        
+        <p>This link will expire in 24 hours for security reasons.</p>
+    </div>
+    
+    <div class="footer">
+        <p>This is an automated message, please do not reply to this email.</p>
+        <p>© 2025 YI SSO. All rights reserved.</p>
+        <p>If you need assistance, please contact our support team at support@yisso.com</p>
+    </div>
+</body>
+</html>
