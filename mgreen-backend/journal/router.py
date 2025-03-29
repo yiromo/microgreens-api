@@ -11,7 +11,7 @@ from .schemas import JournalCreate
 
 router = APIRouter(
     prefix="/journal",
-    # dependencies=[Depends(get_token)],
+    dependencies=[Depends(get_token)],
     tags=["Journal"]
 )
 
@@ -26,12 +26,15 @@ async def get_all_journals(
     journal_service = JournalService(db)
 
     try:
-        journals = await journal_service.get_all_journals(page, page_size)
+        journals, total_count = await journal_service.get_all_journals(page, page_size)
 
+        page_count = (total_count + page_size - 1) // page_size
+        
         return {
             "journals": journals,
             "page": page,
-            "page_size": page_size
+            "page_size": page_size,
+            "page_count": page_count
         }
     
     except IntegrityError as e:

@@ -1,28 +1,40 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update, delete
+from sqlalchemy import select, update, delete, func
 from sqlalchemy.orm import selectinload
 from plants.models import Plants
-from .plants_schemas import PlantBase, PlantRead
+from .plants_schemas import PlantBase, PlantRead, PlantListResponse
 from typing import List, Optional
 from uuid import UUID
 from datetime import datetime
-
+import math
 
 class PlantsService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def get_all(self, page: int = 1, limit: int = 10) -> List[PlantRead]:
-        offset = (page - 1) * limit
+    async def get_all(self, page: int = 1, page_size: int = 10) -> PlantListResponse:
+        offset = (page - 1) * page_size
+        
         query = (
             select(Plants)
             .options(selectinload(Plants.plant_type))
             .offset(offset)
-            .limit(limit)
+            .limit(page_size)
         )
         result = await self.db.execute(query)
         plants = result.scalars().all()
-        return [PlantRead.model_validate(p) for p in plants]
+        
+        total_query = select(func.count(Plants.id))
+        total_result = await self.db.execute(total_query)
+        total = total_result.scalar()
+
+        page_count = math.ceil(total / page_size) if total > 0 else 0
+
+        return PlantListResponse(
+            items=[PlantRead.model_validate(p) for p in plants],
+            page_size=page_size,
+            page_count=page_count
+        )
 
     async def get_by_id(self, id: str) -> Optional[PlantRead]:
         query = (
@@ -45,7 +57,7 @@ class PlantsService:
         )
         self.db.add(new_plant)
         await self.db.commit()
-        await self.db.refresh(new_plant, attribute_names=["plant_type"])  # Ensure plant_type is refreshed
+        await self.db.refresh(new_plant, attribute_names=["plant_type"])
         return PlantRead.model_validate(new_plant)
 
     async def update(self, id: str, plant_data: PlantBase) -> Optional[PlantRead]:
@@ -65,7 +77,7 @@ class PlantsService:
         await self.db.commit()
         plant = result.scalar_one_or_none()
         if plant:
-            await self.db.refresh(plant, attribute_names=["plant_type"])  
+            await self.db.refresh(plant, attribute_names=["plant_type"])
             return PlantRead.model_validate(plant)
         return None
 

@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Response, Depends, HTTPException, status
-from .plants_schemas import PlantBase, PlantRead
+from fastapi import APIRouter, Response, Depends, HTTPException, status, UploadFile, File
+from .plants_schemas import PlantBase, PlantRead, PlantListResponse
 from .plants_service import PlantsService
 from typing import List
 from core.dependencies import CommonDependencies
@@ -11,16 +11,16 @@ router = APIRouter(
     dependencies=[Depends(get_token)]
 )
 
-@router.get("/all", response_model=List[PlantRead])
+@router.get("/all", response_model=PlantListResponse)
 async def get_all_plants(
     page: int = 1,
-    limit: int = 10,
+    page_size: int = 10,
     commons: CommonDependencies = Depends()
 ):
     db = commons.db
     service = PlantsService(db)
-    plants = await service.get_all(page=page, limit=limit)
-    return plants
+    plant_list = await service.get_all(page=page, page_size=page_size)
+    return plant_list
 
 @router.get("/{id}", response_model=PlantRead)
 async def get_plant(

@@ -22,8 +22,13 @@ class JournalService():
             query = select(Journal).offset(offset).limit(page_size)
             result = await self.db.execute(query)
             journals = result.scalars().all()
-            
-            return journals
+    
+            count_query = select(func.count()).select_from(Journal)
+            count_result = await self.db.execute(count_query)
+            total_count = count_result.scalar()
+
+            return journals, total_count
+        
         except SQLAlchemyError as e:
             logging.error(f"Ошибка при получении журналов: {str(e)}")
             raise e
