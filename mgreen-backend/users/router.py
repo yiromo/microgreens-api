@@ -5,6 +5,7 @@ from typing import List
 from database import get_db
 from utils.token import get_token
 from .services import get_user_service, UserService
+from core.dependencies import CommonDependencies
 from .models import *
 from auth.services import AuthService, get_auth_service
 
@@ -18,14 +19,16 @@ router = APIRouter(
 async def get_all_users(
     page: int = 1,
     limit: int = 10,
-    db: AsyncSession = Depends(get_db),
     user_service: UserService = Depends(get_user_service),
-    auth_service: AuthService = Depends(get_auth_service),
-    token: str = Depends(get_token),
+    commons: CommonDependencies = Depends()
 ):
     """
     ONLY ADMIN AND SUPERADMIN CAN ACCESS THIS ENDPOINT
     """
+    db = commons.db
+    auth_service = commons.auth_service
+    token = commons.token
+
     current_user = await auth_service.get_current_user(token)
     current_user_type = await user_service.get_user_type(str(current_user.user_type_id))
     
@@ -50,10 +53,13 @@ async def get_all_users(
 
 @router.get("/me", response_model=UserRead)
 async def get_me_profile(
-    token: str = Depends(get_token),
-    auth_service: AuthService = Depends(get_auth_service),
+    commons: CommonDependencies = Depends(),
     user_service: UserService = Depends(get_user_service),
 ):
+    db = commons.db
+    auth_service = commons.auth_service
+    token = commons.token
+    
     current_user: Users = await auth_service.get_current_user(token)
     if not current_user:
         raise HTTPException(status_code=401, detail="User not found")
