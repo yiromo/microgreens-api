@@ -4,6 +4,7 @@ from .plants_service import PlantsService
 from typing import List
 from core.dependencies import CommonDependencies
 from utils.token import get_token
+from utils.logger import logger
 
 router = APIRouter(
     prefix="/plant",
@@ -78,12 +79,25 @@ async def delete_plant(
         )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
-@router.post("/by-image")
-async def create_plant_by_image(commons: CommonDependencies = Depends()):
+@router.post("/by-image", response_model=List[PlantRead])
+async def create_plant_by_image(image: UploadFile = File(...), commons: CommonDependencies = Depends()):
     db = commons.db
     auth_service = commons.auth_service
     token = commons.token
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail="Create by image not yet implemented"
-    )
+    service = PlantsService(db)
+    try:
+        logger.info(f"Received image upload: {image.filename}, content-type: {image.content_type}")
+        if not image.content_type.startswith('image/'):
+            raise HTTPException(status_code=400, detail="File must be an image")
+        
+        await image.seek(0)
+        test_bytes = await image.read(1024)
+        logger.info(f"Successfully read {len(test_bytes)} bytes from the image")
+        
+        await image.seek(0)
+        
+        return await service.create_from_image_analysis(image)
+        
+    except Exception as e:
+        logger.error(f"Error in create_plant_by_image: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))

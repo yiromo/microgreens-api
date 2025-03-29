@@ -4,7 +4,12 @@ WORKDIR /app/mgreen-backend
 
 RUN apt-get update && \
     apt-get install -y \
-    wget 
+    wget \
+    ffmpeg \
+    libsm6 \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    libpq-dev
 
 ENV VIRTUAL_ENV=/home/packages/.venv
 

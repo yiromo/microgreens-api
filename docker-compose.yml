@@ -44,12 +44,35 @@ services:
   #     mgreen-net:
   #       ipv4_address: 192.168.11.6
 
+  database:
+    image: postgres:latest
+    container_name: mgreen-database
+    ports:
+      - "5445:5432"
+    env_file:
+      - ./envs/containers.env
+    networks:
+      mgreen-net:
+        ipv4_address: 192.168.11.5
+    volumes:
+      - /mgreen/postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   mgreen-api:
     build:
       context: .
       dockerfile: ./dockerfiles/mgreen.dockerfile
     container_name: mgreen-api
     restart: always
+    depends_on:
+      database:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
     volumes:
       - ./mgreen-backend:/app/mgreen-backend
       - ./requirements.txt:/app/mgreen-backend/requirements.txt
@@ -58,6 +81,26 @@ services:
     networks:
       mgreen-net:
         ipv4_address: 192.168.11.3
+
+  minio:
+    image: minio/minio:latest
+    container_name: mgreen-minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000" # S3 API
+      - "9001:9001" # Web UI
+    env_file:
+      - ./envs/containers.env
+    networks:
+      mgreen-net:
+        ipv4_address: 192.168.11.6
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - /mgreen/minio_data:/data
 
 networks:
   mgreen-net:
