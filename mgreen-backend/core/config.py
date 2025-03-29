@@ -8,6 +8,7 @@ load_dotenv()
 
 class Settings(BaseSettings):
     DATABASE_URL: str
+    OPENAI_API_KEY: str
  
     IS_DEVELOPMENT: bool = True
     SECRET_KEY: str 
