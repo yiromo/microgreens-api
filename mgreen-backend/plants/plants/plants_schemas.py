@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field, field_validator
 from core.schemas import ReadBase
 from typing import Optional
 from uuid import UUID
-from plants.schemas.plants_type_schemas import PlantTypeRead as PlantTypeReadSchema  
+from plants_type.plants_type_schemas import PlantTypeRead as PlantTypeReadSchema  
 
 class PlantBase(BaseModel):
     name: str

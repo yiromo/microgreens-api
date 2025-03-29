@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Response, Depends, HTTPException, status
-from plants.schemas.plants_schemas import PlantBase, PlantRead
-from plants.services.plants_service import PlantsService
+from .plants_schemas import PlantBase, PlantRead
+from .plants_service import PlantsService
 from typing import List
 from core.dependencies import CommonDependencies
 from utils.token import get_token

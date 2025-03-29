@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, delete
 from sqlalchemy.orm import selectinload
 from plants.models import PlantsType
-from plants.schemas.plants_type_schemas import PlantTypeRead, PlantTypeBase
+from .plants_type_schemas import PlantTypeRead, PlantTypeBase
 from typing import List, Optional
 from uuid import UUID
 from datetime import datetime

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Response, Depends, HTTPException, status
-from plants.schemas.plants_type_schemas import PlantTypeBase, PlantTypeRead
-from plants.services.plants_type_service import PlantsTypeService
+from .plants_type_schemas import PlantTypeBase, PlantTypeRead
+from .plants_type_service import PlantsTypeService
 from typing import List
 from sqlalchemy.ext.asyncio import AsyncSession
 from core.dependencies import CommonDependencies
