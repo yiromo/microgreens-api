@@ -14,3 +14,4 @@ class CommonDependencies:
         self.db = db
         self.auth_service = auth_service
         self.token = token
+

@@ -2,7 +2,8 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from alembic import context
 import asyncio
 from users.models import Users, UserType, UserRegistration
-from plants.models import Plants, PlantsClassifications
+from plants.models import Plants, PlantsType
+from journal.models import Journal
 from core.config import settings
 import sys
 sys.path.append('.')  

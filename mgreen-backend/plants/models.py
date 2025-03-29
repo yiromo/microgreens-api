@@ -1,4 +1,4 @@
-from sqlalchemy import String, ForeignKey, Boolean, DateTime
+from sqlalchemy import String, ForeignKey, Boolean, DateTime, Integer, Text
 from datetime import datetime
 from sqlalchemy.dialects.postgresql import UUID 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -18,6 +18,8 @@ class Plants(Base):
         index=True,
     )
     name: Mapped[str] = mapped_column(String)
+    typical_days_to_harvest: Mapped[int] = mapped_column(Integer)
+    description: Mapped[str] = mapped_column(Text)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime,
@@ -32,12 +34,14 @@ class Plants(Base):
         doc="Timestamp when the registration record was last updated."
     )
 
-    plant_type_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("plants_classifications.id"))
-    plant_type: Mapped["PlantsClassifications"] = relationship("PlantsClassifications", back_populates="plants")
+    plant_type_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("plants_type.id", ondelete="CASCADE")
+    )
+    plant_type: Mapped["PlantsType"] = relationship("PlantsType", back_populates="plants")
 
 
-class PlantsClassifications(Base):
-    __tablename__ = "plants_classifications"
+class PlantsType(Base):
+    __tablename__ = "plants_type"
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -47,6 +51,7 @@ class PlantsClassifications(Base):
     )
     
     name: Mapped[str] = mapped_column(String)
+    description: Mapped[str] = mapped_column(Text)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime,

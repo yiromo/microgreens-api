@@ -1,15 +1,24 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional
+from datetime import datetime
+from uuid import UUID
 
 class IdBase(BaseModel):
-    id: str
+    id: str = Field(..., description="UUID as a string")
+
+    @field_validator("id", mode="before")
+    def coerce_uuid_to_str(cls, v):
+        if isinstance(v, UUID):
+            return str(v)
+        return v
 
 class DateBase(BaseModel):
-    created_at: str
-    updated_at: Optional[str]
+    created_at: datetime
+    updated_at: Optional[datetime] = None
 
 class ReadBase(IdBase, DateBase):
-    pass
+    class Config:
+        from_attributes = True
 
 class StatusBase(BaseModel):
     is_active: bool = True
