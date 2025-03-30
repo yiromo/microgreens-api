@@ -46,7 +46,7 @@ class RecordsWithSoilResponse(BaseModel):
     soil: SeedbedResponseFull
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class RecordAnalytics(BaseModel):
     message: str

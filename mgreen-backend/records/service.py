@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple, List
 from .models import Records
 import json
-from plants.models import Plants, PlantTypes
+from plants.models import Plants, PlantsType
 from sqlalchemy.orm import joinedload
 from fastapi import HTTPException
 from .schemas import RecordsBase, RecordAnalytics, RecordsWithSoilResponse
@@ -261,11 +261,11 @@ You are a cheerful assistant tasked with creating short, fun, and engaging push 
     async def record_analytics_all_seedbeds(self, seedbed_id: int) -> RecordAnalytics:
         try:
             query = (
-                select(Records, Seedbeds, Plants, PlantTypes)
+                select(Records, Seedbeds, Plants, PlantsType)
                 .select_from(Records)
                 .join(Seedbeds, Records.soilId == Seedbeds.id)
                 .join(Plants, Seedbeds.plant_id == Plants.id)
-                .join(PlantTypes, Plants.plant_type_id == PlantTypes.id)
+                .join(PlantsType, Plants.plant_type_id == PlantsType.id)
                 .where(Records.soilId == seedbed_id)
             )
             result = await self.db.execute(query)
