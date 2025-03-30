@@ -4,6 +4,7 @@ from typing import Optional, List
 import uuid
 import base64
 import re
+from seedbeds.schemas import SeedbedResponseFull
 
 
 class RecordsBase(BaseModel):
@@ -31,3 +32,21 @@ class GetAllRecordsResponse(BaseModel):
     page: int
     page_size: int
     page_count: int
+
+class RecordsWithSoilResponse(BaseModel):
+    id: int
+    water_temperature: float
+    air_temperature: float
+    air_humidity: float
+    light_level: float
+    height_plant: float
+    photo_link: str
+    created_at: datetime
+    soilId: int
+    soil: SeedbedResponseFull
+
+    class Config:
+        orm_mode = True
+
+class RecordAnalytics(BaseModel):
+    message: str

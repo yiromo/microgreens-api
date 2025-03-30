@@ -8,8 +8,10 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple, List
 from .models import Records
 import json
+from plants.models import Plants, PlantTypes
+from sqlalchemy.orm import joinedload
 from fastapi import HTTPException
-from .schemas import RecordsBase
+from .schemas import RecordsBase, RecordAnalytics, RecordsWithSoilResponse
 from seedbeds.models import Seedbeds
 from seedbeds.services import SeedbedsService
 from seedbeds.schemas import SeedbedResponseFull
@@ -253,6 +255,87 @@ You are a cheerful assistant tasked with creating short, fun, and engaging push 
             logger.error(f"Analytics processing error: {str(e)}", exc_info=True)
             raise HTTPException(
                 status_code=500, 
+                detail=f"Failed to analyze plant data: {str(e)}"
+            )
+        
+    async def record_analytics_all_seedbeds(self, seedbed_id: int) -> RecordAnalytics:
+        try:
+            query = (
+                select(Records, Seedbeds, Plants, PlantTypes)
+                .select_from(Records)
+                .join(Seedbeds, Records.soilId == Seedbeds.id)
+                .join(Plants, Seedbeds.plant_id == Plants.id)
+                .join(PlantTypes, Plants.plant_type_id == PlantTypes.id)
+                .where(Records.soilId == seedbed_id)
+            )
+            result = await self.db.execute(query)
+            rows = result.all()
+
+            if not rows:
+                return RecordAnalytics(message="No records found for this seedbed.")
+
+            records_data = []
+            for record, seedbed, plant, plant_type in rows:
+                record_dict = {
+                    "id": record.id,
+                    "water_temperature": record.water_temperature,
+                    "air_temperature": record.air_temperature,
+                    "air_humidity": record.air_humidity,
+                    "light_level": record.light_level,
+                    "height_plant": record.height_plant,
+                    "photo_link": record.photo_link,
+                    "created_at": record.created_at.isoformat(),
+                    "soilId": record.soilId,
+                    "soil": {
+                        "id": seedbed.id,
+                        "soil_number": seedbed.soil_number,
+                        "plant_id": str(seedbed.plant_id),
+                        "type_of_soil": seedbed.type_of_soil,
+                        "date_planted": seedbed.date_planted.isoformat(),
+                        "date_harvested": seedbed.date_harvested.isoformat() if seedbed.date_harvested else None,
+                        "plant_name": plant.name,
+                        "plant": {
+                            "id": str(plant.id),
+                            "name": plant.name,
+                            "typical_days_to_harvest": plant.typical_days_to_harvest,
+                            "description": plant.description,
+                            "plant_type_id": str(plant.plant_type_id),
+                            "created_at": plant.created_at.isoformat(),
+                            "updated_at": plant.updated_at.isoformat() if plant.updated_at else None,
+                            "plant_type": {
+                                "id": str(plant_type.id),
+                                "name": plant_type.name,
+                                "description": plant_type.description,
+                                "created_at": plant_type.created_at.isoformat(),
+                                "updated_at": plant_type.updated_at.isoformat() if plant_type.updated_at else None,
+                            }
+                        }
+                    }
+                }
+                records_data.append(record_dict)
+
+            llm = LLMRequest(
+                client=self.client,
+                model=AIModelType.GPT4OMINI,
+                temperature=LLMTemperature.LOWEST
+            )
+
+            sys_prompt = """
+You are an expert agronomist analyzing microgreen growth records for a seedbed. Below are records with environmental conditions, plant height, and soil/plant details. Analyze trends (e.g., temperature, humidity, light changes), assess plant health and growth stage relative to the plant's typical_days_to_harvest, and note suboptimal conditions (ideal: 18-24°C, 50-70% humidity, 1000-5000 lux for microgreens). Provide a concise, actionable summary (max 100 words) with suggestions or confirmation of healthy growth.
+
+RECORDS:
+{records_data}
+"""
+            llm.add_system_message(sys_prompt.format(records_data=records_data))
+
+            response = await llm.send("Analyze the records and provide insights.")
+
+            return RecordAnalytics(message=response)
+
+        except Exception as e:
+            logger.error(f"Analytics processing error: {str(e)}", exc_info=True)
+            raise HTTPException(
+                status_code=500,
                 detail=f"Failed to analyze plant data: {str(e)}"
             )
 

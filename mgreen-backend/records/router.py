@@ -120,3 +120,9 @@ async def add_record_by_id(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Ошибка при добавлении записи: {str(e)}\nТрассировка:\n{tb}"
         )
+
+@router.get("/analytics/{seedbed_id}", response_model=RecordAnalytics)
+async def analytics(seedbed_id: int, commons: CommonDependencies = Depends()):
+    db: AsyncSession = commons.db   
+    records_service = RecordsService(db)
+    return await records_service.record_analytics_all_seedbeds(seedbed_id)
