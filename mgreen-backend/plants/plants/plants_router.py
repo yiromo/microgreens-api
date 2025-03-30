@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Response, Depends, HTTPException, status, UploadFile, File
-from .plants_schemas import PlantBase, PlantRead, PlantListResponse
+from .plants_schemas import PlantBase, PlantRead, PlantListResponse, PlantImage
 from .plants_service import PlantsService
 from typing import List
+import mimetypes
+import base64
 from core.dependencies import CommonDependencies
 from utils.token import get_token
 from utils.logger import logger
@@ -79,25 +81,27 @@ async def delete_plant(
         )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
+
 @router.post("/by-image", response_model=List[PlantRead])
-async def create_plant_by_image(image: UploadFile = File(...), commons: CommonDependencies = Depends()):
+async def create_plant_by_image(image: PlantImage, commons: CommonDependencies = Depends()):
     db = commons.db
-    auth_service = commons.auth_service
-    token = commons.token
     service = PlantsService(db)
     try:
-        logger.info(f"Received image upload: {image.filename}, content-type: {image.content_type}")
-        if not image.content_type.startswith('image/'):
-            raise HTTPException(status_code=400, detail="File must be an image")
+        if not image.photo_link.startswith("data:image/"):
+            raise HTTPException(status_code=400, detail="Invalid image format")
         
-        await image.seek(0)
-        test_bytes = await image.read(1024)
-        logger.info(f"Successfully read {len(test_bytes)} bytes from the image")
+        header, base64_data = image.photo_link.split(",", 1)
+        photo_data = base64.b64decode(base64_data)
         
-        await image.seek(0)
-        
-        return await service.create_from_image_analysis(image)
-        
+        result = await service.create_from_image_analysis(photo_data)
+        return result
+    except ValueError as e:
+        error_msg = str(e)
+        if "No microgreens detected in the image" in error_msg:
+            logger.info("No microgreens detected in the image - returning empty list")
+            return []  
+        logger.error(f"ValueError in create_plant_by_image: {error_msg}", exc_info=True)
+        raise HTTPException(status_code=400, detail=error_msg)
     except Exception as e:
         logger.error(f"Error in create_plant_by_image: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

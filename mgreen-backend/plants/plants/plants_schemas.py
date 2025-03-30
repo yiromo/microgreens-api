@@ -32,3 +32,6 @@ class PlantListResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class PlantImage(BaseModel):
+    photo_link: str

@@ -9,6 +9,10 @@ load_dotenv()
 class Settings(BaseSettings):
     DATABASE_URL: str
     OPENAI_API_KEY: str
+
+    MINIO_ACCESS_KEY: str
+    MINIO_SECRET_KEY: str
+    MINIO_ENDPOINT: str
  
     IS_DEVELOPMENT: bool = True
     SECRET_KEY: str 

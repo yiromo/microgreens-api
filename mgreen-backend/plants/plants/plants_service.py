@@ -97,29 +97,23 @@ class PlantsService:
         await self.db.commit()
         return result.rowcount > 0
     
-    async def create_by_image(self, image: UploadFile) -> dict:
+    async def create_by_image(self, image: bytes) -> dict:
         try:
             logger.info("Starting create_by_image in PlantsService")
             plants_type_service = PlantsTypeService(self.db)
             
-            await image.seek(0)
-            image_bytes = await image.read()
+            logger.info(f"Read {len(image)} bytes from image")
             
-            logger.info(f"Read {len(image_bytes)} bytes from image")
-            
-            if not image_bytes:
+            if not image:
                 logger.error("Empty image file")
                 raise ValueError("Empty image file")
 
-            img_type = imghdr.what(None, image_bytes)
+            img_type = imghdr.what(None, image)
             logger.info(f"Detected image type: {img_type}")
             
             if not img_type:
-                if not image.content_type or not image.content_type.startswith('image/'):
-                    logger.error(f"Invalid image format: {image.content_type}")
-                    raise ValueError("Invalid image format")
-                img_type = image.content_type.split('/')[-1]
-                logger.info(f"Using content type for image type: {img_type}")
+                logger.error("Could not determine image format")
+                raise ValueError("Invalid image format")
 
             logger.info("Fetching plant types")
             plants_types = await plants_type_service.get_all(page=1, limit=10000000)
@@ -182,7 +176,7 @@ Analyze the photo. Follow the system prompt instructions.
             
             try:
                 response_text = await llm.send_with_image(
-                    image_bytes,
+                    image,
                     prompt
                 )
                 logger.info("Received response from LLM")
@@ -218,7 +212,7 @@ Analyze the photo. Follow the system prompt instructions.
                 detail=f"Ошибка при обработке изображения: {str(e)}"
             )
 
-    async def create_from_image_analysis(self, image: UploadFile) -> List[PlantRead]:
+    async def create_from_image_analysis(self, image) -> List[PlantRead]:
         try:
             analysis_result = await self.create_by_image(image)
             
@@ -227,7 +221,7 @@ Analyze the photo. Follow the system prompt instructions.
                 
             list_of_items = analysis_result.get("list_of_items", [])
             if not list_of_items:
-                return []
+                return []  
                 
             created_plants = []
             for item in list_of_items:
@@ -244,16 +238,13 @@ Analyze the photo. Follow the system prompt instructions.
                     
                 except KeyError as e:
                     logger.error(f"Missing required field in item: {str(e)}")
-                    continue  
+                    continue
                 except Exception as e:
                     logger.error(f"Failed to create plant from item {item}: {str(e)}")
-                    continue  
+                    continue
                     
             return created_plants
             
         except Exception as e:
             logger.error(f"Error in create_from_image_analysis: {str(e)}", exc_info=True)
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to create plants from image analysis: {str(e)}"
-            )
+            raise
