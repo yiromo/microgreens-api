@@ -4,7 +4,7 @@ from sqlalchemy import select, func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from database import get_db
 import base64
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple, List
 from .models import Records
 import json
@@ -17,12 +17,14 @@ from llm.request import LLMRequest
 from llm.schemas import LLMTemperature, AIModelType
 from utils.logger import logger
 from core.ai_config import OPENAI_CLIENT
-import imghdr
-
+from utils.kafka_client import KafkaProducer 
+from integration.services import Integrations
 
 class RecordsService():
     def __init__(self, db: AsyncSession):
+        self.kafka_producer = KafkaProducer()
         self.db = db
+        self.integration_service = Integrations(self.db)
         self.client = OPENAI_CLIENT
 
     async def get_all_records_by_id(
@@ -156,6 +158,44 @@ class RecordsService():
                 detail=f"Image processing error: {str(e)}"
             )
         
+    async def record_push_notification(self, full_message: str, time: datetime):
+        try:
+            llm = LLMRequest(
+                client=self.client,
+                model=AIModelType.GPT4OMINI,
+                temperature=LLMTemperature.LOWEST
+            )
+
+            sys_prompt = """
+You are a cheerful assistant tasked with creating short, fun, and engaging push notifications for a microgreen growing app. Your goal is to analyze the provided full message (a detailed record of microgreen conditions and analysis) and craft a brief, light-hearted notification (max 100 characters) that either encourages the user to make another record or offers a simple, friendly suggestion. Keep it positive, avoid technical jargon, and make it feel like a nudge from a friend!
+"""
+            llm.add_system_message(sys_prompt)
+
+            prompt = f"Here’s the full message to analyze:\n\n{full_message}\n\nCreate a fun push notification based on this."
+            llm.add_user_message(prompt)
+
+            response = await llm.send()
+            push_notification = response.strip()
+
+            if len(push_notification) > 100:
+                push_notification = push_notification[:97] + "..."  
+
+            telegrams = await self.integration_service.get_all_telegram_integrations()
+
+            for telegram in telegrams:
+                telegram_id = telegram.telegram_id  
+                await self.kafka_producer.send_message(
+                    telegram_id=telegram_id,
+                    message=push_notification,
+                    deliver_at=time
+                )
+                print("Scheduled push notification for Telegram ID {telegram_id} at {time}: {push_notification}")
+                logger.info(f"Scheduled push notification for Telegram ID {telegram_id} at {time}: {push_notification}")
+
+        except Exception as e:
+            logger.error(f"Error in record_push_notification: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to send push notification: {str(e)}")
+        
     async def record_analytics(self, records: RecordsBase, seedbed_id: int):
         try: 
             seedbeds_service = SeedbedsService(self.db)
@@ -183,8 +223,23 @@ class RecordsService():
                 except Exception as update_error:
                     logger.error(f"Failed to update harvest date: {str(update_error)}")
             
-            if response.get('message'):
-                return response.get('message')
+                if response.get('message'):
+                    await self.kafka_producer.start()
+                    telegrams = await self.integration_service.get_all_telegram_integrations()
+                    full_message = f"""Record created:\n- Water Temperature: {records.water_temperature}°C\n- Air Temperature: {records.air_temperature}°C\n- Air Humidity: {records.air_humidity}%\n- Light Level: {records.light_level} lux\n- Plant Height: {records.height_plant} cm\n{response.get('message')}"""
+                    for telegram in telegrams:
+                        telegram_id = telegram.telegram_id
+                        now_utc = datetime.now(timezone.utc)
+                        full_msg_time = now_utc + timedelta(seconds=10)
+                        await self.kafka_producer.send_message(telegram_id, full_message, deliver_at=full_msg_time)
+                        logger.info(f"Scheduled full message for {telegram_id} at {full_msg_time.isoformat()}Z (UTC)")
+
+                        notification_time = now_utc + timedelta(minutes=5)
+                        logger.info(f"Harvest: {harvest_date.isoformat()}Z, Notification: {notification_time.isoformat()}Z (UTC)")
+                        if harvest_date > notification_time:
+                            await self.record_push_notification(full_message=full_message, time=notification_time)
+                    await self.kafka_producer.stop()
+                    return response.get('message')
             else:
                 return "Analysis completed, but no specific recommendations available"
 

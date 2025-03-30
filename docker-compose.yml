@@ -1,48 +1,47 @@
 version: '3.8'
 
 services:
-  # zookeeper:
-  #   image: confluentinc/cp-zookeeper:7.5.0
-  #   container_name: zookeeper
-  #   restart: always
-  #   environment:
-  #     ZOOKEEPER_CLIENT_PORT: 2181
-  #     ZOOKEEPER_TICK_TIME: 2000
-  #   ports:
-  #     - "2181:2181"
-  #   networks:
-  #     mgreen-net:
-  #       ipv4_address: 192.168.11.4
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper
+    restart: always
+    env_file:
+      - ./envs/containers.env
+    ports:
+      - "2181:2181"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      mgreen-net:
+        ipv4_address: 192.168.11.4
 
-  # kafka:
-  #   image: confluentinc/cp-kafka:7.5.0
-  #   container_name: kafka
-  #   restart: always
-  #   depends_on:
-  #     - zookeeper
-  #   env_file:
-  #     - ./envs/containers.env
-  #   ports:
-  #     - "9092:9092"
-  #   networks:
-  #     mgreen-net:
-  #       ipv4_address: 192.168.11.5
-
-  # mail:
-  #   build:
-  #     context: .
-  #     dockerfile: ./dockerfiles/mail.dockerfile  
-  #   container_name: mail-service
-  #   restart: always
-  #   volumes:
-  #     - ./mail:/app/mail
-  #   ports:
-  #     - 8882:8030
-  #   depends_on:
-  #     - kafka
-  #   networks:
-  #     mgreen-net:
-  #       ipv4_address: 192.168.11.6
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka
+    restart: always
+    depends_on:
+      - zookeeper
+    env_file:
+      - ./envs/containers.env
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      mgreen-net:
+        ipv4_address: 192.168.11.11
 
   database:
     image: postgres:latest
@@ -56,11 +55,41 @@ services:
         ipv4_address: 192.168.11.5
     volumes:
       - /mgreen/postgres_data:/var/lib/postgresql/data
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5
+
+  telegram:
+    build:
+      context: .
+      dockerfile: ./dockerfiles/telegram.dockerfile
+    container_name: mgreen-telegram
+    restart: always
+    depends_on:
+      kafka:
+        condition: service_healthy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    volumes:
+      - ./telegram:/app/telegram
+      - ./requirements.txt:/app/telegram/requirements.txt
+    ports:
+      - 8011:8005
+    environment:
+      - TZ=UTC
+    networks:
+      mgreen-net:
+        ipv4_address: 192.168.11.2
 
   mgreen-api:
     build:
@@ -73,11 +102,18 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     volumes:
       - ./mgreen-backend:/app/mgreen-backend
       - ./requirements.txt:/app/mgreen-backend/requirements.txt
     ports:
       - 8010:8000
+    environment:
+      - TZ=UTC
     networks:
       mgreen-net:
         ipv4_address: 192.168.11.3
@@ -94,6 +130,11 @@ services:
     networks:
       mgreen-net:
         ipv4_address: 192.168.11.6
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 10s

@@ -3,6 +3,7 @@ from alembic import context
 import asyncio
 from users.models import Users, UserType, UserRegistration
 from plants.models import Plants, PlantsType
+from integration.models import TelegramIntegration
 from seedbeds.models import Seedbeds
 from records.models import Records
 from core.config import settings
