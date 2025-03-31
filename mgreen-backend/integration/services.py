@@ -5,6 +5,7 @@ from .models import TelegramIntegration
 from .schemas import TelegramIntegrationCreate, TelegramIntegrationResponse
 from utils.logger import logger
 from utils.kafka_client import KafkaProducer
+from datetime import datetime, timezone, timedelta
 from typing import List 
 from datetime import datetime, timedelta
 
@@ -14,29 +15,43 @@ class Integrations:
         self.kafka_producer = KafkaProducer()
 
     async def create_telegram_integration(self, telegram_data: TelegramIntegrationCreate) -> TelegramIntegrationResponse:
+        """Create a new Telegram integration and notify via Kafka."""
         try:
+            # Start Kafka producer
             await self.kafka_producer.start()
-            new_integration = TelegramIntegration(
-                telegram_id=telegram_data.telegram_id
-            )
-            self.db.add(new_integration)
-            await self.db.commit()
+
+            # Begin transaction
+            async with self.db.begin() as transaction:
+                new_integration = TelegramIntegration(telegram_id=telegram_data.telegram_id)
+                self.db.add(new_integration)
+                await self.db.flush()  # Ensure ID is assigned without committing yet
+                await transaction.commit()  # Explicit commit
+
             await self.db.refresh(new_integration)
 
+            deliver_time = datetime.now(timezone.utc) + timedelta(seconds=5)
             await self.kafka_producer.send_message(
                 telegram_id=str(telegram_data.telegram_id),
-                message=f"Succesfully integrated with Application, created with ID: \n{new_integration.id}",
-                deliver_at=datetime.now() + timedelta(seconds=5)  
+                message=f"Successfully integrated with Application, created with ID: {new_integration.id}",
+                deliver_at=deliver_time
             )
-            await self.kafka_producer.stop()
-            
+            logger.info(f"Scheduled integration message for Telegram ID {telegram_data.telegram_id} at {deliver_time.isoformat()}Z")
 
             return TelegramIntegrationResponse.model_validate(new_integration)
+
         except IntegrityError as e:
+            await self.db.rollback()
+            logger.error(f"Integrity error creating Telegram integration: {str(e)}")
+            raise Exception(f"Failed to create integration: {str(e)}")
+
+        except Exception as e:
             await self.db.rollback()
             logger.error(f"Error creating Telegram integration: {str(e)}")
             raise Exception(f"Failed to create integration: {str(e)}")
 
+        finally:
+            # Always stop the producer
+            await self.kafka_producer.stop()
     async def get_telegram_integration(self, telegram_id: int) -> TelegramIntegrationResponse:
         try:
             query = select(TelegramIntegration).where(TelegramIntegration.telegram_id == telegram_id)

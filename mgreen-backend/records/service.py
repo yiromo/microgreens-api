@@ -236,7 +236,7 @@ You are a cheerful assistant tasked with creating short, fun, and engaging push 
                         await self.kafka_producer.send_message(telegram_id, full_message, deliver_at=full_msg_time)
                         logger.info(f"Scheduled full message for {telegram_id} at {full_msg_time.isoformat()}Z (UTC)")
 
-                        notification_time = now_utc + timedelta(minutes=5)
+                        notification_time = now_utc + timedelta(minutes=1)
                         logger.info(f"Harvest: {harvest_date.isoformat()}Z, Notification: {notification_time.isoformat()}Z (UTC)")
                         if harvest_date > notification_time:
                             await self.record_push_notification(full_message=full_message, time=notification_time)
